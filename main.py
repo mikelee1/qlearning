@@ -2,17 +2,16 @@ import pandas as pd
 import numpy as np
 import random
 import time,os
+from nnmodel import *
+
+
 statenum = 20
 actions = ['left','right']
-episode = 1000
-epsilon = 1#0.99
+episode = 10
+epsilon = 0.01#0.99
 delt = 0.9
 treanum = 9
 def build_qtabel(actions,statenum):
-    #statenum 10
-    #actions ['left' 'right']
-
-
     data = np.zeros([statenum*statenum, 2])
 
     if os.path.exists('qtable.csv'):
@@ -26,8 +25,7 @@ def build_qtabel(actions,statenum):
     return df
 
 def gene_action(s,qtable):
-    # if s == 6:
-    #     time.sleep(1)
+
     k = random.random()
     if k<epsilon and qtable.iloc[s,:].all()!=0:
 
@@ -79,40 +77,59 @@ def update_qtable(qtable,s,s_,a,r,treanum):
 
 
 robot = ['_']*statenum
-def main():
-    qtable = build_qtabel(actions, statenum)
 
-    s = 0
+
+dic = {1:'left',0:'right'}
+def train(qtable):
+    currentstate = 0
+    trainlist = []
     for i in range(episode):
-        #s = 0
-        # if s== 19:
-        #     raise ValueError
-        treanum = random.randint(0,statenum-1)
-        #treanum = 5
+        treanum = random.randint(0, statenum - 1)
         print(treanum)
-        a = qtable.loc[treanum]
-
         while True:
-            if s == treanum:
-                break
-            robot = ['_'] * statenum
-            action = gene_action(s,a)
-            robot[treanum]='O'
-            robot[s]='+'
-            print(''.join(robot))
-            r,s_,terminal = step(s,action,treanum,statenum)
-
-            if terminal :
-                #print('upupup',s_)
-                update_qtable(a,s,s_,action,r,treanum)
-
-                break
+            if random.random() < epsilon:
+                action = random.choice(actions)
             else:
-                update_qtable(a,s,s_,action,r,treanum)
-            #time.sleep(0.3)
-            s = s_
+                state =[[currentstate,treanum]]
+                action = qtable.evaluate(state)
+                action = dic[action[0]]
+                #print(state,action)
 
-    qtable.to_csv('qtable.csv',index=False,header=False)
+
+            robot = ['_'] * statenum
+
+            robot[treanum]='O'
+            robot[currentstate]='+'
+            print(''.join(robot))
+
+            r, s_n, terminal = step(currentstate, action, treanum, statenum)
+            if terminal:
+                if r>0:
+                    trainlist.append([currentstate,treanum,action])
+                break
+            currentstate = s_n
+
+
+        #qtable.train(trainlist)
+        if i %100 ==0:
+            pass#qtable.save()
+    #qtable.evaluate()
+    #print(trainlist)
+
+
+
+def evaluate(qtable):
+    qtable.evaluate()
+
+
+
+def main():
+    qtable = model(actions,statenum)
+    train1=True
+    if train1:
+        train(qtable)
+    else:
+        evaluate(qtable)
 
 
 if __name__ == '__main__':
